@@ -4,10 +4,9 @@ from typing import Any
 
 
 class WebhookPayload(BaseModel):
-    # zen: str
     action: str
-    repository: dict[str, str]
-    pull_request: dict[str, str]
+    repository: dict[str, Any]
+    pull_request: dict[str, Any]
 
 
 app = FastAPI()
