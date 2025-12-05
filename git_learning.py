@@ -11,7 +11,6 @@ a = Github(auth=auth)
 
 for repo in a.get_user().get_repos():
     print(repo.name)
-    # print(dir(repo))
 
 
 a.close()
