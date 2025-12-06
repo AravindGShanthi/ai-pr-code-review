@@ -54,7 +54,6 @@ def llm_review_node(state: MessageState):
     LLM will review the pull request diff and suggest code improvements, best practices,
     check coding standards, and feedbacks.
     """
-    print("LLM Review node - START \n")
     system_prompt = """You are a helpful coding assistant tasked with reviewing pull request diffs and suggesting code improvements, best practices, and coding standards feedback.
 
     Return your response as valid JSON with this exact format:
@@ -195,12 +194,6 @@ def llm_review_node(state: MessageState):
         }
     )
 
-    print("LLM Output: \n")
-    for message in result["messages"]:
-        message.pretty_print()
-
-    print("LLM Review node - END \n")
-
     return {"messages": result["messages"], "output": result["messages"][-1]}
 
 
@@ -214,11 +207,6 @@ def post_review_comment(state: MessageState):
         if final_output and isinstance(final_output, str)
         else None
     )
-
-    print("post_review_comment OUTPUT \n\n")
-    print(f"{"x"*100}")
-    print(convert_to_obj)
-    print(f"{"x"*100}")
     auth = Auth.Token(os.getenv("GITHUB_TOKEN"))
     gh = Github(auth=auth)
     repo = gh.get_repo(state["repo_full"])
@@ -245,7 +233,6 @@ def helloWorld():
 
 @app.post("/webhook/pr")
 async def handle_pr(pr: WebhookPayload):
-    print(pr)
     if pr.action not in ["opened", "synchronize", "reopened"]:
         return {"status": "ignored"}
 
@@ -268,11 +255,9 @@ async def handle_pr(pr: WebhookPayload):
     result = graph.invoke({"repo_full": repo_full, "pr_number": pr_number})
 
     final_output = result["messages"][-1].content
-    print(f"{"x"*100}")
-    print(final_output)
-    print(f"{"x"*100}")
 
     return {
         "status": "processing",
         "data": {"repo_full": repo_full, "pr_number": pr_number},
+        "output": final_output,
     }
