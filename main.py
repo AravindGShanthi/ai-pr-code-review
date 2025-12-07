@@ -86,8 +86,8 @@ def llm_review_node(state: MessageState) -> dict[str, Any]:
     Review the provided diff and identify:
     1. Bugs or logical errors
     2. Violations of coding standards
-    3. Security issues
-    4. Suggestions for improvement
+    3. Security issues - Hardcoded secrets, SQL injection, unsafe deserialization, unvalidated inputs
+    4. Suggestions for improvement - Missing error handling, better variable naming, better architecture
 
     EXAMPLES:
 
