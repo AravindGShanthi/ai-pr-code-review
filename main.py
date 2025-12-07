@@ -1,18 +1,21 @@
-import os
-from fastapi import FastAPI
-from pydantic import BaseModel
-from typing import Any
-from dotenv import load_dotenv
-from github import Github
-from github import Auth
-from langgraph.graph import StateGraph, START, END
-from langchain.messages import AnyMessage, AIMessage
-from typing_extensions import TypedDict, Annotated
-from langchain.agents import create_agent
 import json
 import operator
+from typing import Annotated, Any
+
+from config import get_github_token, init_settings  # type: ignore
+from dotenv import load_dotenv
+from fastapi import FastAPI
+from github import Auth, Github
+from langchain.agents import create_agent
+from langchain.messages import AIMessage, AnyMessage
+from langgraph.graph import END, START, StateGraph
+from pydantic import BaseModel
+from typing_extensions import TypedDict
 
 load_dotenv()
+
+# Initialize settings at startup
+init_settings()
 
 app = FastAPI()
 
@@ -31,29 +34,37 @@ class MessageState(TypedDict):
     pr_number: int | None
 
 
-def fetch_pr_files(state: MessageState):
-    """
-    Fetch the pull request based on repo fullname and PR number, and return the list of diffs object
-    """
-    auth = Auth.Token(os.getenv("GITHUB_TOKEN"))
+def fetch_pr_files(state: MessageState) -> dict[str, list[dict[str, str]]]:
+    """Fetch the pull request based on repo fullname and PR number, and return the list of diffs object."""
+    auth = Auth.Token(get_github_token())
     gh = Github(auth=auth)
 
-    repo = gh.get_repo(state["repo_full"])
-    pr = repo.get_pull(state["pr_number"])
+    repo_full = state["repo_full"]
+    pr_number = state["pr_number"]
 
-    diffs = []
+    if repo_full is None:
+        raise ValueError("repo_full is required")
+    if pr_number is None:
+        raise ValueError("pr_number is required")
+
+    repo = gh.get_repo(repo_full)
+    pr = repo.get_pull(pr_number)
+
+    diffs: list[dict[str, str]] = []
 
     for f in pr.get_files():
-        diffs.append({"filename": f.filename, "patch": f.patch})
+        diffs.append(
+            {
+                "filename": f.filename,
+                "patch": f.patch if f.patch else "",
+            }
+        )
 
     return {"diffs": diffs}
 
 
-def llm_review_node(state: MessageState):
-    """
-    LLM will review the pull request diff and suggest code improvements, best practices,
-    check coding standards, and feedbacks.
-    """
+def llm_review_node(state: MessageState) -> dict[str, Any]:
+    """LLM will review the pull request diff and suggest code improvements, best practices, check coding standards, and feedbacks."""
     system_prompt = """You are a helpful coding assistant tasked with reviewing pull request diffs and suggesting code improvements, best practices, and coding standards feedback.
 
     Return your response as valid JSON with this exact format:
@@ -169,7 +180,7 @@ def llm_review_node(state: MessageState):
     }
     """
 
-    agent = create_agent(
+    agent: Any = create_agent(
         model="gpt-4o-mini",
         system_prompt=system_prompt,
     )
@@ -187,38 +198,46 @@ def llm_review_node(state: MessageState):
                         4. Suggestions for improvement
 
                         Diff:
-                        {state['diffs']}
+                        {state["diffs"]}
                     """,
-                }
-            ]
-        }
+                },
+            ],
+        },
     )
 
     return {"messages": result["messages"], "output": result["messages"][-1]}
 
 
-def post_review_comment(state: MessageState):
-    """
-    Post review comments into the github repo
-    """
+def post_review_comment(state: MessageState) -> dict[str, list[AIMessage]]:
+    """Post review comments into the github repo."""
     final_output = state["messages"][-1].content
     convert_to_obj = (
         json.loads(final_output)
         if final_output and isinstance(final_output, str)
         else None
     )
-    auth = Auth.Token(os.getenv("GITHUB_TOKEN"))
+    auth = Auth.Token(get_github_token())
     gh = Github(auth=auth)
-    repo = gh.get_repo(state["repo_full"])
-    pr = repo.get_pull(state["pr_number"])
+
+    repo_full = state["repo_full"]
+    pr_number = state["pr_number"]
+
+    if repo_full is None:
+        raise ValueError("repo_full is required")
+    if pr_number is None:
+        raise ValueError("pr_number is required")
+
+    repo = gh.get_repo(repo_full)
+    pr = repo.get_pull(pr_number)
 
     comment_body = "### 🤖 AI Code Review\n"
 
-    for issue in convert_to_obj["issues"]:
-        comment_body += f"""
-            **File:** {issue['file']}
-            **Issue:** {issue['message']}
-            **Suggestion:** {issue['suggestion']}
+    if convert_to_obj and "issues" in convert_to_obj:
+        for issue in convert_to_obj["issues"]:
+            comment_body += f"""
+            **File:** {issue["file"]}
+            **Issue:** {issue["message"]}
+            **Suggestion:** {issue["suggestion"]}
             ---
         """
     pr.create_issue_comment(comment_body)
@@ -227,7 +246,7 @@ def post_review_comment(state: MessageState):
 
 
 @app.get("/")
-def helloWorld():
+def hello_world():
     return {"hello": "world"}
 
 
@@ -252,9 +271,18 @@ async def handle_pr(pr: WebhookPayload):
 
     graph = agent_builder.compile()
 
-    result = graph.invoke({"repo_full": repo_full, "pr_number": pr_number})
+    initial_state: MessageState = {
+        "messages": [],
+        "diffs": None,
+        "output": None,
+        "repo_full": repo_full,
+        "pr_number": pr_number,
+    }
+    result = graph.invoke(initial_state)  # type: ignore[arg-type]
 
-    final_output = result["messages"][-1].content
+    final_output = (
+        result["messages"][-1].content if result["messages"] else "No review generated"
+    )
 
     return {
         "status": "processing",
