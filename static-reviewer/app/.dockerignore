@@ -1,0 +1,6 @@
+__pycache__
+*.pyc
+.env
+.static_reviewer
+.git
+.ruff_cache
