@@ -99,6 +99,7 @@ def llm_review_node(state: MessageState) -> dict[str, Any]:
         "You are a helpful coding assistant tasked with reviewing pull "
         "request diffs and suggesting code improvements, best practices, and "
         "coding standards feedback.\n\n"
+        f"{static_report_text}"
         "Return your response as valid JSON with this exact format:\n"
         "{\n"
         '    "summary": "brief summary of the review",\n'
@@ -114,13 +115,13 @@ def llm_review_node(state: MessageState) -> dict[str, Any]:
         "    ],\n"
         '    "suggested_patch": "optional suggested code changes"\n'
         "}\n\n"
-        "Review the provided diff and identify:\n"
+        "Review the provided diff, static_analysis and identify:\n"
         "1. Bugs or logical errors\n"
         "2. Violations of coding standards\n"
         "3. Security issues - Hardcoded secrets, SQL injection, unsafe "
         "deserialization, unvalidated inputs\n"
         "4. Suggestions for improvement - Missing error handling, better "
-        f"variable naming, better architecture{static_report_text}"
+        "5. Include variable naming, better architecture"
     )
 
     agent: Any = create_agent(
@@ -142,6 +143,9 @@ def llm_review_node(state: MessageState) -> dict[str, Any]:
 
                         Diff:
                         {state["diffs"]}
+
+                        Static Analysis:
+                        {state["static_analysis_report"]}
                     """,
                 },
             ],
@@ -154,11 +158,28 @@ def llm_review_node(state: MessageState) -> dict[str, Any]:
 def post_review_comment(state: MessageState) -> dict[str, list[AIMessage]]:
     """Post review comments into the github repo."""
     final_output = state["messages"][-1].content
-    convert_to_obj = (
-        json.loads(final_output)
-        if final_output and isinstance(final_output, str)
-        else None
-    )
+
+    print("Final_output \n\n", final_output)
+
+    convert_to_obj = None
+
+    if final_output and isinstance(final_output, str):
+        cleaned_output: str = final_output.strip()
+        if cleaned_output.startswith("```json"):
+            cleaned_output = cleaned_output.removeprefix("```json")
+
+        if cleaned_output.endswith("```"):
+            cleaned_output = cleaned_output.removesuffix("```")
+
+        cleaned_output = cleaned_output.strip()
+
+        try:
+            convert_to_obj = json.loads(cleaned_output)
+        except json.JSONDecodeError as e:
+            print(f"Error parsing JSON: {e}")
+            print(f"Cleaned response: {cleaned_output[:500]}")
+            convert_to_obj = None
+
     auth = Auth.Token(get_github_token())
     gh = Github(auth=auth)
 
