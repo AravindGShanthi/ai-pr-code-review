@@ -10,3 +10,7 @@ print(x)
 
 def divde(x, y):
     return x / y
+
+
+def z(a, b):
+    return a * b
