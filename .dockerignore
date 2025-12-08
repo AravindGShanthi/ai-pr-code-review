@@ -7,8 +7,8 @@ __pycache__/
 # Virtual environments
 venv/
 .venv/
-static-reviewer/
-.static-reviewer/
+ai_pr_assist/
+.ai_pr_assist/
 
 # Git
 .git/
@@ -32,3 +32,5 @@ docker-compose.yml
 # Logs
 *.log
 
+# Not required
+static-reviewer
