@@ -14,3 +14,7 @@ def divde(x, y):
 
 def z(a, b):
     return a * b
+
+
+def helloWorld(ad, a):
+    return ad + a
