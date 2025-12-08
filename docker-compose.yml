@@ -1,0 +1,34 @@
+version: "3.9"
+
+services:
+  main-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: main-app
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      GITHUB_TOKEN: ${GITHUB_TOKEN}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      MODEL_NAME: ${MODEL_NAME}
+      LOG_LEVEL: ${LOG_LEVEL}
+      DEBUG: ${DEBUG}
+    networks:
+      - ai-reviewer-net
+
+  static-reviewer:
+    build:
+      context: ./static-reviewer/app
+      dockerfile: Dockerfile
+    container_name: static-reviewer
+    ports:
+      - "8080:8080"
+    networks:
+      - ai-reviewer-net
+
+networks:
+  ai-reviewer-net:
+    driver: bridge
