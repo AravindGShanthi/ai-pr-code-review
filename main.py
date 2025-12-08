@@ -3,7 +3,6 @@ import operator
 from typing import Annotated, Any
 
 import requests
-from config import get_github_token, init_settings  # type: ignore[import-untyped]
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from github import Auth, Github, GithubException
@@ -12,6 +11,8 @@ from langchain.messages import AIMessage, AnyMessage
 from langgraph.graph import END, START, StateGraph
 from pydantic import BaseModel
 from typing_extensions import TypedDict
+
+from config import get_github_token, init_settings  # type: ignore[import-untyped]
 
 load_dotenv()
 
