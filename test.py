@@ -18,3 +18,7 @@ def z(a, b):
 
 def helloWorld(ad, a):
     return ad + a
+
+
+def hiThere(a):
+    return a
