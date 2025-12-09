@@ -18,6 +18,10 @@ An intelligent code review system that leverages AI to automatically review GitH
 - **Containerization**: Docker, Docker Compose
 - **Runtime**: Python 3.13
 
+## System Architecture
+<img width="3318" height="1602" alt="image" src="https://github.com/user-attachments/assets/401ed7ee-5c2e-462c-ad45-c9f30f25623f" />
+
+
 ## Quick Start
 
 ### Prerequisites
